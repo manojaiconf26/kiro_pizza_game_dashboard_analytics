@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pizza Game Dashboard - Serverless application for analyzing pizza orders vs game scores
+
+Globals:
+  Function:
+    Timeout: 900
+    MemorySize: 1024
+    Runtime: python3.9
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Description: Name of the S3 bucket for data storage
+    Default: pizza-game-analytics-default
+  
+  DominosApiKey:
+    Type: String
+    Description: API key for Dominos data access
+    Default: ""
+    NoEcho: true
+  
+  DominosStoreId:
+    Type: String
+    Description: Dominos store ID for data collection
+    Default: ""
+  
+  FootballApiKey:
+    Type: String
+    Description: API key for football data access (football-data.org)
+    Default: ""
+    NoEcho: true
+  
+  MaxRequestsPerMinute:
+    Type: Number
+    Description: Maximum API requests per minute
+    Default: 60
+  
+  MaxRequestsPerHour:
+    Type: Number
+    Description: Maximum API requests per hour
+    Default: 1000
+
+Resources:
+  PizzaGameDashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambda_function.lambda_handler
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/PizzaDashboardRole'
+      Environment:
+        Variables:
+          # S3 Configuration
+          S3_BUCKET_NAME: !Ref S3BucketName
+          AWS_REGION: !Ref AWS::Region
+          
+          # API Configuration
+          DOMINOS_API_KEY: !Ref DominosApiKey
+          DOMINOS_STORE_ID: !Ref DominosStoreId
+          DOMINOS_API_URL: "https://api.dominos.com/v1"
+          FOOTBALL_API_KEY: !Ref FootballApiKey
+          FOOTBALL_API_URL: "https://api.football-data.org/v4"
+          
+          # Rate Limiting Configuration
+          MAX_REQUESTS_PER_MINUTE: !Ref MaxRequestsPerMinute
+          MAX_REQUESTS_PER_HOUR: !Ref MaxRequestsPerHour
+          MAX_API_RETRIES: "3"
+          BACKOFF_FACTOR: "1.0"
+          API_TIMEOUT: "30"
+          
+          # QuickSight Configuration
+          QUICKSIGHT_ACCOUNT_ID: !Ref AWS::AccountId
+      Events:
+        ScheduledExecution:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 18 * * ? *)  # Daily at 6 PM UTC
+            Description: "Daily execution after typical game times"
+            Enabled: true
+
+  PizzaGameDashboardLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${PizzaGameDashboardFunction}'
+      RetentionInDays: 14
+
+Outputs:
+  PizzaGameDashboardFunction:
+    Description: "Pizza Game Dashboard Lambda Function ARN"
+    Value: !GetAtt PizzaGameDashboardFunction.Arn
+  
+  PizzaGameDashboardFunctionIamRole:
+    Description: "Implicit IAM Role created for Pizza Game Dashboard function"
+    Value: !GetAtt PizzaGameDashboardFunction.Arn
