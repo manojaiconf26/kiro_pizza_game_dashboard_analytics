@@ -2,27 +2,13 @@
   "fileLocations": [
     {
       "URIs": [
-        {
-  "fileLocations": [
-    {
-      "URIs": [
-        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/12/13/20251213_132836_dashboard_data_*.json",
-        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/12/14/20251214_*_dashboard_data_*.json"
+        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/20251213_132836_dashboard_data_cbb081bc-11fb-4cdd-90de-fbe883633a33.json",
+        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/20251214_031844_dashboard_data_b9729331-463f-4251-9214-4fb2206f5c32.json",
+        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/20251214_031848_dashboard_data_6822d507-a0c0-40f3-9fd4-47a092621c5a.json"
       ]
     }
   ],
   "globalUploadSettings": {
     "format": "JSON"
-  }
-}
-
-      ]
-    }
-  ],
-  "globalUploadSettings": {
-    "format": "JSON",
-    "delimiter": ",",
-    "textqualifier": "\"",
-    "containsHeader": "true"
   }
 }
