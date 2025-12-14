@@ -2,11 +2,27 @@
   "fileLocations": [
     {
       "URIs": [
-        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/12/13/20251213_132836_dashboard_data_cbb081bc-11fb-4cdd-90de-fbe883633a33.json"
+        {
+  "fileLocations": [
+    {
+      "URIs": [
+        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/12/13/20251213_132836_dashboard_data_*.json",
+        "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/2025/12/14/20251214_*_dashboard_data_*.json"
       ]
     }
   ],
   "globalUploadSettings": {
     "format": "JSON"
+  }
+}
+
+      ]
+    }
+  ],
+  "globalUploadSettings": {
+    "format": "JSON",
+    "delimiter": ",",
+    "textqualifier": "\"",
+    "containsHeader": "true"
   }
 }
