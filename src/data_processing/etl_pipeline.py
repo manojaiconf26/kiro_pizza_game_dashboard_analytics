@@ -1,12 +1,52 @@
 """
 ETL Pipeline for Pizza Game Dashboard
 
-This module implements the Extract, Transform, Load pipeline that:
-- Extracts data from S3 storage (both real and mock sources)
-- Transforms and normalizes data formats across sources
-- Loads processed datasets back to S3 for analysis
+This module implements a comprehensive Extract, Transform, Load (ETL) pipeline
+that processes pizza order and football match data for correlation analysis.
 
-Requirements: 5.1, 5.2, 5.3, 2.5
+EXTRACT Phase:
+- Retrieves data from S3 storage with support for multiple file formats (JSON, CSV)
+- Handles both real API data and mock fallback data seamlessly
+- Implements data source filtering and date range queries
+- Provides robust error handling for missing or corrupted files
+
+TRANSFORM Phase:
+- Normalizes data formats across different sources (real vs mock)
+- Performs timestamp alignment for temporal correlation analysis
+- Implements timezone conversion and standardization (UTC)
+- Calculates derived metrics and enrichment fields
+- Applies data quality scoring based on real vs mock data ratios
+
+LOAD Phase:
+- Stores processed datasets back to S3 in multiple formats
+- Creates QuickSight-compatible data structures
+- Maintains data lineage and processing metadata
+- Implements organized folder structure for data lifecycle management
+
+Key Data Transformations:
+1. Timestamp Normalization: All timestamps converted to UTC for consistent analysis
+2. Location Standardization: Pizza order locations normalized to lowercase
+3. Team Name Formatting: Football team names standardized to title case
+4. Derived Metrics: Total goals, winner determination, high-scoring match flags
+5. Time Period Classification: Pre-match, during-match, post-match categorization
+
+Temporal Alignment Algorithm:
+- Creates configurable time windows around football matches (default: 6 hours)
+- Aligns pizza orders within these windows for correlation analysis
+- Calculates time differences in minutes from match start
+- Categorizes orders by temporal relationship to match events
+
+Requirements Satisfied:
+- 5.1: Data retrieval reliability from S3 storage
+- 5.2: Timestamp-based alignment for correlation analysis
+- 5.3: Source-agnostic processing (real and mock data)
+- 2.5: Data format consistency across pipeline stages
+
+Performance Considerations:
+- Processes data in chunks to manage memory usage
+- Uses pandas for efficient data manipulation
+- Implements lazy loading for large datasets
+- Provides progress monitoring for long-running operations
 """
 
 import logging
@@ -269,22 +309,54 @@ class ETLPipeline:
                                   matches_df: pd.DataFrame,
                                   time_window_hours: int = 6) -> pd.DataFrame:
         """
-        Align pizza orders with football matches based on timestamps.
+        Align pizza orders with football matches based on timestamps for correlation analysis.
         
-        Creates time windows around each match to capture related pizza orders:
-        - Pre-match: 2 hours before match
-        - During-match: match time ± 2 hours
-        - Post-match: 2 hours after match
+        This method implements the core temporal alignment algorithm that enables
+        correlation analysis between football events and pizza ordering patterns.
+        
+        Time Window Strategy:
+        - Creates configurable time windows around each football match
+        - Default 6-hour window: 3 hours before to 3 hours after match
+        - Subdivides into analysis periods for granular correlation study
+        
+        Analysis Periods (within each match window):
+        - Pre-match: 2 hours before match start (anticipation orders)
+        - During-match: Match time ± 1 hour (live viewing orders)  
+        - Post-match: 2 hours after match end (celebration/disappointment orders)
+        
+        Algorithm Steps:
+        1. For each football match, define temporal boundaries
+        2. Find all pizza orders within the extended time window
+        3. Classify orders by their temporal relationship to the match
+        4. Calculate precise time differences in minutes from match start
+        5. Enrich orders with match context (teams, scores, significance)
+        6. Create aligned records combining order and match information
+        
+        Data Quality Tracking:
+        - Tracks mixed data sources (real order + mock match, etc.)
+        - Records alignment metadata for analysis validation
+        - Maintains processing timestamps for audit trails
         
         Args:
-            orders_df: Normalized pizza orders DataFrame
-            matches_df: Normalized football matches DataFrame
+            orders_df: Normalized pizza orders DataFrame with UTC timestamps
+            matches_df: Normalized football matches DataFrame with UTC timestamps
             time_window_hours: Total time window around matches (default 6 hours)
+                              Larger windows capture more orders but may include noise
             
         Returns:
-            DataFrame with aligned orders and matches
+            DataFrame with aligned order-match pairs, each row representing:
+            - One pizza order with its temporal relationship to one football match
+            - Complete order details (amount, location, pizza types)
+            - Complete match details (teams, scores, significance)
+            - Temporal classification (pre/during/post match)
+            - Time difference calculations for precise correlation analysis
             
-        Requirements: 5.2 - Timestamp-based alignment
+        Requirements: 5.2 - Timestamp-based alignment for meaningful correlation
+        
+        Performance Notes:
+        - Complexity: O(M * O) where M=matches, O=orders in time windows
+        - Memory usage scales with number of aligned pairs created
+        - For large datasets, consider processing in date-based chunks
         """
         try:
             self.logger.info("Aligning datasets by timestamp")

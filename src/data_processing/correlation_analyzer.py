@@ -1,12 +1,96 @@
 """
 Correlation Analysis Engine for Pizza Game Dashboard
 
-This module implements correlation analysis between pizza orders and football match events.
-It calculates metrics for pre-match, during-match, and post-match order volumes,
-computes correlation coefficients, performs statistical significance testing,
-and classifies football match events.
+This module implements comprehensive statistical correlation analysis between
+pizza ordering patterns and football match events, providing the analytical
+foundation for understanding consumer behavior during sporting events.
 
-Requirements: 5.4, 7.1, 7.2, 2.4
+STATISTICAL METHODS IMPLEMENTED:
+
+1. Pearson Correlation Coefficient:
+   - Used for continuous variables (order volumes, match scores)
+   - Measures linear relationships between variables
+   - Range: -1 (perfect negative) to +1 (perfect positive)
+   - Assumes normal distribution and linear relationships
+
+2. Point-Biserial Correlation:
+   - Used for binary outcomes (win/loss, high-scoring/low-scoring)
+   - Special case of Pearson correlation for dichotomous variables
+   - Appropriate for correlating continuous order data with binary match outcomes
+
+3. Statistical Significance Testing:
+   - P-value calculation using scipy.stats methods
+   - Significance threshold: α = 0.05 (95% confidence level)
+   - Null hypothesis: No correlation between variables
+   - Alternative hypothesis: Significant correlation exists
+
+TEMPORAL ANALYSIS FRAMEWORK:
+
+Time Period Definitions:
+- Pre-match: 2 hours before match start (anticipation effect)
+- During-match: Match time ± 1 hour (live viewing effect)
+- Post-match: 2 hours after match end (celebration/disappointment effect)
+
+Metrics Calculated per Period:
+- Order count: Total number of pizza orders
+- Order volume: Total monetary value of orders
+- Average order value: Mean order amount
+- Pizza count: Total number of pizzas ordered
+- Unique locations: Geographic distribution of orders
+- Orders per hour: Normalized ordering rate
+
+CORRELATION ANALYSIS TYPES:
+
+1. Outcome-Based Correlations:
+   - Home wins vs order patterns
+   - Away wins vs order patterns  
+   - Draws vs order patterns
+   - High-scoring matches (3+ goals) vs order spikes
+   - Tournament matches vs regular season patterns
+
+2. Temporal Pattern Correlations:
+   - Pre-match to post-match order relationships
+   - During-match to post-match immediate reactions
+   - Cross-period correlation patterns
+
+3. Event Classification Correlations:
+   - Match significance (regular/tournament/final) effects
+   - Goal differential impact on ordering
+   - Team-specific ordering patterns
+
+STATISTICAL VALIDATION:
+
+Edge Case Handling:
+- Insufficient data points (< 3 observations)
+- Zero variance in variables (constant values)
+- NaN/Inf values from calculation errors
+- Empty datasets or missing time periods
+
+Data Quality Assessment:
+- Real vs mock data ratio tracking
+- Sample size adequacy validation
+- Correlation strength interpretation
+- Statistical power considerations
+
+BUSINESS INSIGHTS GENERATION:
+
+Pattern Recognition:
+- Identifies statistically significant correlations
+- Classifies correlation strength (weak/moderate/strong)
+- Generates human-readable pattern descriptions
+- Provides business-relevant interpretations
+
+Requirements Satisfied:
+- 5.4: Comprehensive metric calculation for match periods
+- 7.1: Accurate correlation coefficient calculations
+- 7.2: Statistical significance detection with proper testing
+- 2.4: Football event classification for enhanced analysis
+
+Mathematical Foundation:
+- Uses scipy.stats for robust statistical calculations
+- Implements proper handling of statistical assumptions
+- Provides confidence intervals and effect size measures
+- Ensures reproducible and scientifically valid results
 """
 
 import logging
@@ -252,17 +336,66 @@ class CorrelationAnalyzer:
                                     outcome_name: str, volume_name: str,
                                     metrics_df: pd.DataFrame) -> Optional[CorrelationResult]:
         """
-        Calculate a single correlation coefficient with statistical significance.
+        Calculate a single correlation coefficient with comprehensive statistical validation.
+        
+        This method implements the core statistical calculation with robust error handling
+        and validation to ensure meaningful and reliable correlation results.
+        
+        Statistical Method Selection:
+        - Point-biserial correlation: Used when outcome_data is binary (True/False, Win/Loss)
+        - Pearson correlation: Used when outcome_data is continuous (scores, counts)
+        
+        Data Validation Steps:
+        1. Check for sufficient sample size (minimum 3 data points)
+        2. Remove NaN values that would invalidate calculations
+        3. Verify variance exists in both variables (no constant values)
+        4. Validate data types and ranges for statistical assumptions
+        
+        Statistical Significance:
+        - Calculates p-value using appropriate statistical test
+        - P-value represents probability of observing correlation by chance
+        - Lower p-values indicate stronger evidence against null hypothesis
+        - Standard significance threshold: p < 0.05 (95% confidence)
+        
+        Error Handling:
+        - Returns None for invalid inputs or calculation failures
+        - Logs warnings for edge cases (insufficient data, no variance)
+        - Handles NaN/Inf results from statistical calculations
+        - Provides detailed error context for debugging
         
         Args:
-            volume_data: Order volume data
-            outcome_data: Match outcome data
-            outcome_name: Name of the outcome variable
-            volume_name: Name of the volume variable
-            metrics_df: Full metrics DataFrame for context
+            volume_data: Pizza order volume data (continuous variable)
+                        Examples: order_count, total_revenue, orders_per_hour
+            outcome_data: Football match outcome data (binary or continuous)
+                         Examples: win/loss (binary), total_goals (continuous)
+            outcome_name: Human-readable name of outcome variable for reporting
+            volume_name: Human-readable name of volume variable for reporting
+            metrics_df: Complete metrics DataFrame for data quality assessment
             
         Returns:
-            CorrelationResult object or None if calculation fails
+            CorrelationResult object containing:
+            - correlation_coefficient: Strength and direction of relationship (-1 to +1)
+            - statistical_significance: P-value for hypothesis testing
+            - time_window: Temporal context (pre_match, during_match, post_match)
+            - pattern_description: Human-readable interpretation
+            - data_quality: Percentage of real vs mock data used
+            - sample_size: Number of observations in calculation
+            
+            Returns None if:
+            - Insufficient data points (< 3 observations)
+            - No variance in either variable
+            - Statistical calculation produces invalid results (NaN/Inf)
+            - Unexpected errors during processing
+        
+        Statistical Assumptions:
+        - Pearson: Linear relationship, normal distribution, homoscedasticity
+        - Point-biserial: One continuous variable, one true dichotomy
+        - Both methods assume independence of observations
+        
+        Business Interpretation:
+        - Correlation ≠ causation (correlation does not imply causal relationship)
+        - Strength interpretation: |r| < 0.3 (weak), 0.3-0.7 (moderate), > 0.7 (strong)
+        - Practical significance may differ from statistical significance
         """
         try:
             # Remove any NaN values

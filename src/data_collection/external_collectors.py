@@ -1,8 +1,35 @@
 """
 External API collectors for pizza orders and football data.
 
-This module provides clients for collecting real data from external APIs
-with robust error handling, rate limiting, and fallback mechanisms to mock data.
+This module provides comprehensive API integration for collecting real-time data from:
+- Football-data.org API (Premier League matches, scores, events)
+- Domino's API (pizza orders, timestamps, locations) - prepared but uses mock by default
+
+Key Features:
+- Intelligent fallback to realistic mock data when APIs are unavailable
+- Rate limiting compliance (10 requests/minute for football-data.org free tier)
+- Exponential backoff retry logic for transient failures
+- Comprehensive error handling with detailed logging
+- Authentication management with environment variable configuration
+- Data source labeling throughout the pipeline for analysis transparency
+
+Authentication Methods:
+- Football API: X-Auth-Token header with API key from football-data.org
+- Domino's API: Bearer token authentication (requires business partnership)
+- Environment variables: FOOTBALL_API_KEY, DOMINOS_API_KEY, DOMINOS_STORE_ID
+
+Error Handling Strategy:
+1. Network errors → Retry with exponential backoff (max 3 attempts)
+2. Rate limiting → Wait for Retry-After header or implement backoff
+3. Authentication errors → Log error and fall back to mock data
+4. API unavailable → Seamlessly switch to mock data generation
+5. Data parsing errors → Skip invalid records, continue processing
+
+Requirements Satisfied:
+- 1.1, 1.3, 2.1, 2.3: API fallback consistency
+- 1.4, 2.2: Complete data extraction
+- 1.2, 4.3: Robust error handling
+- 1.5: Rate limiting compliance
 """
 
 import time
@@ -58,47 +85,101 @@ class APIConfig:
 
 
 class RateLimiter:
-    """Rate limiter to ensure API usage stays within limits."""
+    """
+    Rate limiter to ensure API usage stays within provider limits.
+    
+    Implements sliding window rate limiting for both minute and hour intervals.
+    This is crucial for the football-data.org free tier which allows only
+    10 requests per minute. Exceeding limits results in 429 errors and
+    temporary API access suspension.
+    
+    Algorithm:
+    1. Maintain lists of request timestamps for minute and hour windows
+    2. Before each request, clean expired timestamps from tracking lists
+    3. Check if current request count would exceed limits
+    4. If limit would be exceeded, calculate sleep time and wait
+    5. Record successful request timestamp for future limit calculations
+    
+    Thread Safety: Not thread-safe. Use separate instances for concurrent access.
+    """
     
     def __init__(self, max_per_minute: int = 60, max_per_hour: int = 1000):
         """
-        Initialize rate limiter.
+        Initialize rate limiter with configurable limits.
         
         Args:
-            max_per_minute: Maximum requests per minute
-            max_per_hour: Maximum requests per hour
+            max_per_minute: Maximum requests per minute (default: 60)
+                          For football-data.org free tier, this should be 10
+            max_per_hour: Maximum requests per hour (default: 1000)
+                         For football-data.org free tier, this should be 600
+        
+        Note: Default values are conservative. Actual API limits may be lower.
         """
         self.max_per_minute = max_per_minute
         self.max_per_hour = max_per_hour
-        self.minute_requests = []
-        self.hour_requests = []
+        
+        # Track request timestamps in sliding windows
+        # Each list contains Unix timestamps of recent requests
+        self.minute_requests = []  # Requests in last 60 seconds
+        self.hour_requests = []    # Requests in last 3600 seconds
     
     def wait_if_needed(self) -> None:
-        """Wait if necessary to respect rate limits."""
+        """
+        Wait if necessary to respect rate limits using sliding window algorithm.
+        
+        This method implements proactive rate limiting to prevent 429 errors:
+        1. Clean expired timestamps from tracking windows
+        2. Check if making a request now would exceed limits
+        3. If so, calculate minimum wait time and sleep
+        4. Record the request timestamp for future calculations
+        
+        The algorithm ensures we never exceed limits by waiting for the oldest
+        request in the window to expire before making a new request.
+        
+        Performance Note: This method blocks the calling thread when rate limits
+        are approached. For high-throughput scenarios, consider async alternatives.
+        """
         now = time.time()
         
-        # Clean old requests
+        # Clean expired requests from sliding windows
+        # Remove requests older than 60 seconds from minute window
         self.minute_requests = [req_time for req_time in self.minute_requests 
                                if now - req_time < 60]
+        
+        # Remove requests older than 3600 seconds (1 hour) from hour window
         self.hour_requests = [req_time for req_time in self.hour_requests 
                              if now - req_time < 3600]
         
-        # Check minute limit
+        # Check minute-level rate limit
         if len(self.minute_requests) >= self.max_per_minute:
-            sleep_time = 60 - (now - self.minute_requests[0])
+            # Calculate how long to wait for oldest request to expire
+            oldest_request = self.minute_requests[0]
+            sleep_time = 60 - (now - oldest_request)
+            
             if sleep_time > 0:
-                logger.info(f"Rate limit reached, sleeping for {sleep_time:.2f} seconds")
+                logger.info(f"Minute rate limit reached ({len(self.minute_requests)}/{self.max_per_minute}), "
+                           f"sleeping for {sleep_time:.2f} seconds")
                 time.sleep(sleep_time)
+                
+                # Update 'now' after sleeping
+                now = time.time()
         
-        # Check hour limit
+        # Check hour-level rate limit
         if len(self.hour_requests) >= self.max_per_hour:
-            sleep_time = 3600 - (now - self.hour_requests[0])
+            # Calculate how long to wait for oldest request to expire
+            oldest_request = self.hour_requests[0]
+            sleep_time = 3600 - (now - oldest_request)
+            
             if sleep_time > 0:
-                logger.info(f"Hourly rate limit reached, sleeping for {sleep_time:.2f} seconds")
+                logger.info(f"Hourly rate limit reached ({len(self.hour_requests)}/{self.max_per_hour}), "
+                           f"sleeping for {sleep_time:.2f} seconds")
                 time.sleep(sleep_time)
+                
+                # Update 'now' after sleeping
+                now = time.time()
         
-        # Record this request
-        now = time.time()
+        # Record this request timestamp in both windows
+        # This ensures future calls will account for this request
         self.minute_requests.append(now)
         self.hour_requests.append(now)
 

@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union, Any
 from botocore.exceptions import ClientError, NoCredentialsError, BotoCoreError
 from dataclasses import asdict
-import pandas as pd
 from io import StringIO, BytesIO
 
 from config.settings import S3_BUCKET_NAME, AWS_REGION, S3_FOLDERS
@@ -211,63 +210,64 @@ class S3Service:
         except Exception as e:
             raise S3StorageError(f"Failed to upload JSON data: {str(e)}")
     
-    def upload_csv_data(self, data: Union[pd.DataFrame, List[Dict]], data_type: str,
-                       data_source: str, filename: str = None,
-                       timestamp: datetime = None, **metadata_kwargs) -> str:
-        """
-        Upload CSV data to S3 with proper organization and metadata.
-        
-        Args:
-            data: Data to upload (DataFrame or list of dicts)
-            data_type: Type of data
-            data_source: Source of data ('real' or 'mock')
-            filename: Optional custom filename
-            timestamp: Optional timestamp for organization
-            **metadata_kwargs: Additional metadata fields
-            
-        Returns:
-            S3 object key of uploaded file
-        """
-        try:
-            # Convert to DataFrame if needed
-            if isinstance(data, list):
-                df = pd.DataFrame(data)
-            else:
-                df = data
-            
-            # Generate filename if not provided
-            if filename is None:
-                filename = f"{data_type}_{data_source}_data.csv"
-            elif not filename.endswith('.csv'):
-                filename = f"{filename}.csv"
-            
-            # Generate S3 key
-            s3_key = self._generate_file_key(data_type, data_source, filename, timestamp)
-            
-            # Convert DataFrame to CSV string
-            csv_buffer = StringIO()
-            df.to_csv(csv_buffer, index=False)
-            csv_data = csv_buffer.getvalue()
-            
-            # Create metadata
-            metadata = self._create_metadata(
-                data_source, data_type, len(df), **metadata_kwargs
-            )
-            
-            # Upload to S3
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=s3_key,
-                Body=csv_data,
-                ContentType='text/csv',
-                Metadata=metadata
-            )
-            
-            self.logger.info(f"Successfully uploaded CSV data to s3://{self.bucket_name}/{s3_key}")
-            return s3_key
-            
-        except Exception as e:
-            raise S3StorageError(f"Failed to upload CSV data: {str(e)}")
+    # CSV methods disabled to avoid pandas dependency
+    # def upload_csv_data(self, data: Union[pd.DataFrame, List[Dict]], data_type: str,
+    #                    data_source: str, filename: str = None,
+    #                    timestamp: datetime = None, **metadata_kwargs) -> str:
+    #     """
+    #     Upload CSV data to S3 with proper organization and metadata.
+    #     
+    #     Args:
+    #         data: Data to upload (DataFrame or list of dicts)
+    #         data_type: Type of data
+    #         data_source: Source of data ('real' or 'mock')
+    #         filename: Optional custom filename
+    #         timestamp: Optional timestamp for organization
+    #         **metadata_kwargs: Additional metadata fields
+    #         
+    #     Returns:
+    #         S3 object key of uploaded file
+    #     """
+    #     try:
+    #         # Convert to DataFrame if needed
+    #         if isinstance(data, list):
+    #             df = pd.DataFrame(data)
+    #         else:
+    #             df = data
+    #         
+    #         # Generate filename if not provided
+    #         if filename is None:
+    #             filename = f"{data_type}_{data_source}_data.csv"
+    #         elif not filename.endswith('.csv'):
+    #             filename = f"{filename}.csv"
+    #         
+    #         # Generate S3 key
+    #         s3_key = self._generate_file_key(data_type, data_source, filename, timestamp)
+    #         
+    #         # Convert DataFrame to CSV string
+    #         csv_buffer = StringIO()
+    #         df.to_csv(csv_buffer, index=False)
+    #         csv_data = csv_buffer.getvalue()
+    #         
+    #         # Create metadata
+    #         metadata = self._create_metadata(
+    #             data_source, data_type, len(df), **metadata_kwargs
+    #         )
+    #         
+    #         # Upload to S3
+    #         self.s3_client.put_object(
+    #             Bucket=self.bucket_name,
+    #             Key=s3_key,
+    #             Body=csv_data,
+    #             ContentType='text/csv',
+    #             Metadata=metadata
+    #         )
+    #         
+    #         self.logger.info(f"Successfully uploaded CSV data to s3://{self.bucket_name}/{s3_key}")
+    #         return s3_key
+    #         
+    #     except Exception as e:
+    #         raise S3StorageError(f"Failed to upload CSV data: {str(e)}")
     
     def download_json_data(self, s3_key: str) -> Union[List[Dict], Dict]:
         """
@@ -299,35 +299,35 @@ class S3Service:
         except Exception as e:
             raise S3StorageError(f"Unexpected error downloading JSON data: {str(e)}")
     
-    def download_csv_data(self, s3_key: str) -> pd.DataFrame:
-        """
-        Download and parse CSV data from S3.
-        
-        Args:
-            s3_key: S3 object key
-            
-        Returns:
-            DataFrame with CSV data
-            
-        Raises:
-            S3StorageError: If download or parsing fails
-        """
-        try:
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
-            csv_data = response['Body'].read().decode('utf-8')
-            
-            # Parse CSV data
-            csv_buffer = StringIO(csv_data)
-            df = pd.read_csv(csv_buffer)
-            
-            self.logger.info(f"Successfully downloaded CSV data from s3://{self.bucket_name}/{s3_key}")
-            return df
-            
-        except ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchKey':
-                raise S3StorageError(f"File not found: {s3_key}")
-            else:
-                raise S3StorageError(f"Failed to download file: {str(e)}")
+    # def download_csv_data(self, s3_key: str) -> pd.DataFrame:
+    #     """
+    #     Download and parse CSV data from S3.
+    #     
+    #     Args:
+    #         s3_key: S3 object key
+    #         
+    #     Returns:
+    #         DataFrame with CSV data
+    #         
+    #     Raises:
+    #         S3StorageError: If download or parsing fails
+    #     """
+    #     try:
+    #         response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_key)
+    #         csv_data = response['Body'].read().decode('utf-8')
+    #         
+    #         # Parse CSV data
+    #         csv_buffer = StringIO(csv_data)
+    #         df = pd.read_csv(csv_buffer)
+    #         
+    #         self.logger.info(f"Successfully downloaded CSV data from s3://{self.bucket_name}/{s3_key}")
+    #         return df
+    #         
+    #     except ClientError as e:
+    #         if e.response['Error']['Code'] == 'NoSuchKey':
+    #             raise S3StorageError(f"File not found: {s3_key}")
+    #         else:
+    #             raise S3StorageError(f"Failed to download file: {str(e)}")
         except Exception as e:
             raise S3StorageError(f"Unexpected error downloading CSV data: {str(e)}")
     

@@ -257,13 +257,25 @@
   - **Property 19: Anomaly Detection with Source Distinction**
   - **Validates: Requirements 7.5**
 
-- [-] 9. Checkpoint - Ensure all tests pass
+- [x] 9. Checkpoint - Ensure all tests pass
+
+
+
+
+
+
+
 
 
 
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Create and deploy Lambda function
+- [x] 10. Create and deploy Lambda function
+
+
+
+
+
   - **Create Single Lambda Function:**
     1. Go to Lambda Console → "Create function"
     2. Function name: `pizza-game-dashboard`
@@ -279,11 +291,38 @@
     - CloudWatch Events/EventBridge for scheduled execution (e.g., daily at 6 PM)
   - _Requirements: 5.5, 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 11. Configure Lambda scheduling and monitoring
-  - Set up EventBridge rule to trigger Lambda on schedule (e.g., daily at 6 PM when games typically end)
-  - Configure CloudWatch monitoring and logging for the Lambda function
-  - Set up CloudWatch alarms for function failures or timeouts
-  - Test the complete serverless pipeline end-to-end
+- [ ]* 11. Configure EventBridge for manual on-demand triggering
+  - **Create EventBridge Custom Rule for Manual Triggering:**
+    1. Navigate to EventBridge in AWS Console
+    2. Click "Rules" → "Create rule"
+    3. Rule name: `pizza-dashboard-manual-trigger`
+    4. Description: "Manual trigger for Pizza Game Dashboard pipeline"
+    5. Event bus: Keep default (default)
+    6. Rule type: Select "Rule with an event pattern"
+    7. **Event Pattern Configuration:**
+       - Event source: "Custom application"
+       - Source: `pizza.dashboard.manual`
+       - Detail-type: `Manual Pipeline Trigger`
+       - Detail: `{"trigger": "manual"}`
+    8. **Target Configuration:**
+       - Target type: "AWS service"
+       - Select target: "Lambda function"
+       - Function: Select your `pizza-game-dashboard` function
+       - Configure input: "Matched event"
+    9. Click "Create rule"
+  - **Test Manual Triggering:**
+    1. Go to EventBridge → "Send events"
+    2. Event source: `pizza.dashboard.manual`
+    3. Detail type: `Manual Pipeline Trigger`
+    4. Event detail: `{"trigger": "manual", "date_range_days": 7}`
+    5. Click "Send event" to test
+  - **Set up CloudWatch monitoring:**
+    - Configure CloudWatch logging for the Lambda function
+    - Set up CloudWatch alarms for function failures or timeouts
+    - Monitor EventBridge rule invocations
+  - **Create simple trigger script (optional):**
+    - Create AWS CLI command or simple script to trigger the pipeline manually
+    - Document the manual trigger process for easy execution
   - _Requirements: 5.5, 6.1, 6.2, 6.3, 6.4_
 
 - [ ]* 11.1 Write integration tests for Lambda pipeline
@@ -292,18 +331,106 @@
   - Test error handling and retry logic within the function
   - _Requirements: 5.5, 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 12. Create QuickSight dashboard setup
-  - Create QuickSight data source configuration for S3
-  - Design dashboard layout with time series and correlation charts
-  - Implement interactive filters for teams, match types, and data sources
-  - Add drill-down capabilities for detailed analysis
+- [x] 12. Create QuickSight dashboard setup
+
+
+  - **Step 1: Create Dataset from S3 (Corrected):**
+    1. Open Amazon QuickSight
+    2. In left navigation, click "Datasets"
+    3. Click "New dataset"
+    4. Select "S3"
+    5. Configure S3 data source:
+       - Data source name: `pizza-dashboard-s3-source`
+       - **Upload manifest file** ❗ (Required - QuickSight does NOT accept raw S3 path directly)
+       - Create `manifest.json`:
+         ```json
+         {
+           "fileLocations": [
+             {
+               "URIs": [
+                 "s3://poc-analytics-us-east-1-12122025/quicksight-ready/dashboard-data/"
+               ]
+             }
+           ],
+           "globalUploadSettings": {
+             "format": "JSON"
+           }
+         }
+         ```
+       - Upload the manifest file
+       - Click "Connect"
+  - **Step 2: Prepare the Dataset (Correct Flow):**
+    1. QuickSight loads data into data prep screen
+    2. Click "Edit dataset"
+    3. Expand nested JSON fields: `execution_summary`, `statistics`, `order_statistics`, `match_statistics`
+    4. Fix data types: Timestamps → Date, Revenue → Decimal, Counts → Integer
+    5. Rename fields (recommended examples):
+       - `statistics.order_statistics.total_orders` → `Total Orders`
+       - `statistics.order_statistics.total_revenue` → `Total Revenue`
+       - `statistics.match_statistics.total_matches` → `Total Matches`
+       - `execution_timestamp` → `Execution Time`
+    6. Click "Save & Publish"
+    7. Dataset name: `Pizza Dashboard Data`
+  - **Step 3: Create an Analysis (Corrected Visual Rules):**
+    1. From dataset screen, click "Create analysis"
+    2. Analysis name: `Pizza Game Dashboard Analysis`
+    3. **Add KPI Metrics (Correct Way):** ❗ One KPI visual = one metric
+       - Create 3 separate KPI visuals:
+         - KPI 1: Value = Total Orders
+         - KPI 2: Value = Total Revenue
+         - KPI 3: Value = Total Matches
+    4. **Add Order Source Breakdown:**
+       - Visual type: Donut chart
+       - Group/Color: order_source (Real vs Mock)
+       - Value: Total Orders
+       - Title: "Order Data Sources"
+    5. **Add Revenue Analysis (Fix):**
+       - ❌ Incorrect: Average Order Value on X-axis
+       - ✅ Correct: Visual type: Bar chart
+       - X-axis: order_source or execution_date
+       - Value: Total Revenue
+       - Optional secondary value: Average Order Value
+       - Title: "Revenue Metrics"
+    6. **Add Match Statistics:**
+       - Visual type: Gauge
+       - Value: Average Goals per Match
+       - Title: "Match Performance"
+  - **Step 4: Publish as Dashboard (Correct):**
+    1. In analysis screen, click "Share"
+    2. Select "Publish dashboard"
+    3. Dashboard name: `Pizza Game Dashboard`
+    4. Add description: "Analytics dashboard showing correlation between football matches and pizza orders"
+    5. Click "Publish dashboard"
+  - **Step 5: Add Filters & Interactivity (Correct):**
+    1. Open the Dashboard, click "Edit"
+    2. Add filters:
+       - Execution Time → Date range filter
+       - Order Source → Real vs Mock
+    3. Apply filters to all visuals
+    4. (Optional) Add Actions: Drill-down from KPI → detailed table visual
+    5. Click "Save"
+  - **Step 6: Refresh & Validate Data (Important Fix):**
+    1. Re-run your Lambda to write new JSON files to S3
+    2. In QuickSight: Datasets → Pizza Dashboard Data → Click "Refresh now"
+    3. ❗ Dashboards do not auto-refresh unless SPICE is scheduled
+  - **Step 7: Share Dashboard (Optional):**
+    1. Open the dashboard, click "Share"
+    2. Add users with appropriate permissions (Viewer/Co-owner)
+    3. (Optional) Generate shareable link
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 13. Add comprehensive documentation and comments
+- [x] 13. Add comprehensive documentation and comments
+
+
+
+
+
+
   - Document all API integration points and authentication methods
   - Add detailed comments explaining data transformation logic
   - Create usage documentation with examples and configuration guides
   - Document error handling procedures and troubleshooting steps
+  - create a technical blog to show the implementation and how Kiro enabled development
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
 - [ ] 14. Final checkpoint - Ensure all tests pass

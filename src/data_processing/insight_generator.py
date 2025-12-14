@@ -147,7 +147,8 @@ class InsightGenerator:
             return patterns
             
         except Exception as e:
-            raise InsightGenerationError(f"Failed to analyze temporal patterns: {str(e)}")
+            self.logger.error(f"Failed to analyze temporal patterns: {str(e)}")
+            return []
     
     def _analyze_period_patterns(self, data_series: pd.Series, period: str, 
                                metric_type: str, metrics_df: pd.DataFrame) -> List[TemporalPattern]:

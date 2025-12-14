@@ -48,6 +48,9 @@ Resources:
       CodeUri: .
       Handler: lambda_function.lambda_handler
       Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/PizzaDashboardRole'
+      Timeout: 900  # 15 minutes maximum
+      MemorySize: 1024  # 1GB for data processing
+      ReservedConcurrencyLimit: 1  # Prevent concurrent executions
       Environment:
         Variables:
           # S3 Configuration
@@ -69,10 +72,7 @@ Resources:
           API_TIMEOUT: "30"
           
           # QuickSight Configuration
-          QUICKSIGHT_ACCOUNT_ID: !Ref AWS::AccountId
-      Events:
-        ScheduledExecution:
-          Type: Schedule
+          QUICKSIGHT_ACCOUNT_ID: !Ref AWS::Accoun
           Properties:
             Schedule: cron(0 18 * * ? *)  # Daily at 6 PM UTC
             Description: "Daily execution after typical game times"

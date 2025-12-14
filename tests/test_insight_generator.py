@@ -254,8 +254,9 @@ class TestInsightGenerator:
         
         assert 0 <= percentage <= 100
         
-        # With our test data (50% real orders, 50% real matches), should be 50%
-        expected_percentage = 50.0
+        # With our test data (5 real orders out of 10, 3 real matches out of 5), should be 53.33%
+        # Total: 8 real items out of 15 total items = 53.33%
+        expected_percentage = 8 / 15 * 100  # 53.33%
         assert abs(percentage - expected_percentage) < 1.0  # Allow small floating point differences
     
     def test_assess_data_completeness(self):
